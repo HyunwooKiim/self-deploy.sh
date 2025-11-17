@@ -1,33 +1,53 @@
 #!/bin/bash
 
 # ======================
+# Detect OS and Package Manager
+# ======================
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$ID
+    OS_VERSION=$VERSION_ID
+else
+    echo "Error: Cannot detect OS"
+    exit 1
+fi
+
+echo ">>> Detected OS: $OS"
+
+# ======================
 # Setup Environment (Java, Docker)
 # ======================
-echo ">>> Cloning setup script from GitHub..."
-SETUP_DIR="setup-temp"
-rm -rf $SETUP_DIR
-git clone https://github.com/HyunwooKiim/setup.sh $SETUP_DIR
+# Ubuntu/Debian 계열에서만 setup.sh 실행
+if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+    echo ">>> Cloning setup script from GitHub..."
+    SETUP_DIR="setup-temp"
+    rm -rf $SETUP_DIR
+    git clone https://github.com/HyunwooKiim/setup.sh $SETUP_DIR
 
-if [ ! -f "$SETUP_DIR/setup.sh" ]; then
-    echo "Error: setup.sh not found in cloned repository"
-    exit 1
+    if [ ! -f "$SETUP_DIR/setup.sh" ]; then
+        echo "Error: setup.sh not found in cloned repository"
+        exit 1
+    fi
+
+    echo ">>> Running setup.sh to install Java 21 and Docker..."
+    cd $SETUP_DIR
+    chmod +x setup.sh
+    ./setup.sh
+
+    if [ $? -ne 0 ]; then
+        echo "Error: setup.sh execution failed"
+        exit 1
+    fi
+
+    cd ..
+    echo ">>> Setup completed successfully!"
+
+    # setup 디렉토리 정리
+    rm -rf $SETUP_DIR
+else
+    echo ">>> Skipping setup.sh (not Ubuntu/Debian)"
+    echo ">>> Assuming Java and Docker are already installed or will be checked..."
 fi
-
-echo ">>> Running setup.sh to install Java 21 and Docker..."
-cd $SETUP_DIR
-chmod +x setup.sh
-./setup.sh
-
-if [ $? -ne 0 ]; then
-    echo "Error: setup.sh execution failed"
-    exit 1
-fi
-
-cd ..
-echo ">>> Setup completed successfully!"
-
-# setup 디렉토리 정리
-rm -rf $SETUP_DIR
 
 # ======================
 # Verify Installation
@@ -41,11 +61,15 @@ if command -v java &> /dev/null; then
 elif [ -f "/usr/bin/java" ]; then
     JAVA_CMD="/usr/bin/java"
 else
-    echo "Error: Java is not installed properly"
-    exit 1
+    echo "Warning: Java is not installed"
+    echo "Please install Java 21 manually if needed"
+    JAVA_CMD=""
 fi
-echo "Java version:"
-$JAVA_CMD -version
+
+if [ -n "$JAVA_CMD" ]; then
+    echo "Java version:"
+    $JAVA_CMD -version
+fi
 
 # Docker 확인 (PATH 또는 /usr/bin/docker 체크)
 if command -v docker &> /dev/null; then
@@ -53,22 +77,25 @@ if command -v docker &> /dev/null; then
 elif [ -f "/usr/bin/docker" ]; then
     DOCKER_CMD="/usr/bin/docker"
 else
-    echo "Error: Docker is not installed properly"
-    exit 1
+    echo "Warning: Docker is not installed"
+    echo "Please install Docker manually if needed"
+    DOCKER_CMD=""
 fi
-echo "Docker version:"
-$DOCKER_CMD --version
 
-# Docker Compose 확인
-if $DOCKER_CMD compose version &> /dev/null; then
-    echo "Docker Compose version:"
-    $DOCKER_CMD compose version
-elif command -v docker-compose &> /dev/null; then
-    echo "Docker Compose version:"
-    docker-compose --version
-else
-    echo "Error: Docker Compose is not installed properly"
-    exit 1
+if [ -n "$DOCKER_CMD" ]; then
+    echo "Docker version:"
+    $DOCKER_CMD --version
+    
+    # Docker Compose 확인
+    if $DOCKER_CMD compose version &> /dev/null; then
+        echo "Docker Compose version:"
+        $DOCKER_CMD compose version
+    elif command -v docker-compose &> /dev/null; then
+        echo "Docker Compose version:"
+        docker-compose --version
+    else
+        echo "Warning: Docker Compose is not installed"
+    fi
 fi
 
 echo ">>> All prerequisites verified successfully!"
@@ -127,8 +154,10 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# .env 파일에서 S3 관련 변수 로드
-export $(grep -v '^#' .env | xargs)
+# .env 파일에서 S3 관련 변수 로드 (더 안전한 방법)
+set -a
+source .env
+set +a
 
 # 필수 환경 변수 확인
 if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_BUCKET" ] || [ -z "$SERVICE_NAME" ]; then
@@ -136,6 +165,19 @@ if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_B
     echo "Please check: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET, SERVICE_NAME"
     exit 1
 fi
+
+# AWS 자격 증명 확인
+echo ">>> Verifying AWS credentials..."
+echo "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}***"
+echo "S3_BUCKET: $S3_BUCKET"
+echo "SERVICE_NAME: $SERVICE_NAME"
+
+# AWS 자격 증명 테스트
+aws sts get-caller-identity > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "Warning: AWS credentials may be invalid. Attempting S3 access anyway..."
+fi
+echo ""
 
 # 변수 설정
 SERVICE=$SERVICE_NAME

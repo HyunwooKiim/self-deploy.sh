@@ -47,12 +47,24 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# .env 다운로드
-aws s3 cp "${S3_PATH}/.env" "${APP_DIR}/.env"
+# env.txt 다운로드 후 .env로 변환
+echo "Downloading env.txt..."
+aws s3 cp "${S3_PATH}/env.txt" "${APP_DIR}/env.txt"
 if [ $? -ne 0 ]; then
-    echo "Error: Failed to download .env"
+    echo "Error: Failed to download env.txt"
     exit 1
 fi
+
+echo "Parsing env.txt to .env..."
+cp "${APP_DIR}/env.txt" "${APP_DIR}/.env"
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to parse env.txt to .env"
+    exit 1
+fi
+
+# 임시 파일 삭제
+rm "${APP_DIR}/env.txt"
+echo ".env file created successfully"
 
 # app.jar 다운로드
 aws s3 cp "${S3_PATH}/app.jar" "${BUILD_DIR}/app.jar"

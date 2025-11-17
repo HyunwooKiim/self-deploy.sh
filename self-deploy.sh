@@ -1,53 +1,33 @@
 #!/bin/bash
 
 # ======================
-# Detect OS and Package Manager
+# Setup Environment (Java, Docker)
 # ======================
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    OS=$ID
-    OS_VERSION=$VERSION_ID
-else
-    echo "Error: Cannot detect OS"
+echo ">>> Cloning setup script from GitHub..."
+SETUP_DIR="setup-temp"
+rm -rf $SETUP_DIR
+git clone https://github.com/HyunwooKiim/setup.sh $SETUP_DIR
+
+if [ ! -f "$SETUP_DIR/setup.sh" ]; then
+    echo "Error: setup.sh not found in cloned repository"
     exit 1
 fi
 
-echo ">>> Detected OS: $OS"
+echo ">>> Running setup.sh to install Java 21 and Docker..."
+cd $SETUP_DIR
+chmod +x setup.sh
+./setup.sh
 
-# ======================
-# Setup Environment (Java, Docker)
-# ======================
-# Ubuntu/Debian 계열에서만 setup.sh 실행
-if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-    echo ">>> Cloning setup script from GitHub..."
-    SETUP_DIR="setup-temp"
-    rm -rf $SETUP_DIR
-    git clone https://github.com/HyunwooKiim/setup.sh $SETUP_DIR
-
-    if [ ! -f "$SETUP_DIR/setup.sh" ]; then
-        echo "Error: setup.sh not found in cloned repository"
-        exit 1
-    fi
-
-    echo ">>> Running setup.sh to install Java 21 and Docker..."
-    cd $SETUP_DIR
-    chmod +x setup.sh
-    ./setup.sh
-
-    if [ $? -ne 0 ]; then
-        echo "Error: setup.sh execution failed"
-        exit 1
-    fi
-
-    cd ..
-    echo ">>> Setup completed successfully!"
-
-    # setup 디렉토리 정리
-    rm -rf $SETUP_DIR
-else
-    echo ">>> Skipping setup.sh (not Ubuntu/Debian)"
-    echo ">>> Assuming Java and Docker are already installed or will be checked..."
+if [ $? -ne 0 ]; then
+    echo "Error: setup.sh execution failed"
+    exit 1
 fi
+
+cd ..
+echo ">>> Setup completed successfully!"
+
+# setup 디렉토리 정리
+rm -rf $SETUP_DIR
 
 # ======================
 # Verify Installation
@@ -61,15 +41,11 @@ if command -v java &> /dev/null; then
 elif [ -f "/usr/bin/java" ]; then
     JAVA_CMD="/usr/bin/java"
 else
-    echo "Warning: Java is not installed"
-    echo "Please install Java 21 manually if needed"
-    JAVA_CMD=""
+    echo "Error: Java is not installed properly"
+    exit 1
 fi
-
-if [ -n "$JAVA_CMD" ]; then
-    echo "Java version:"
-    $JAVA_CMD -version
-fi
+echo "Java version:"
+$JAVA_CMD -version
 
 # Docker 확인 (PATH 또는 /usr/bin/docker 체크)
 if command -v docker &> /dev/null; then
@@ -77,25 +53,22 @@ if command -v docker &> /dev/null; then
 elif [ -f "/usr/bin/docker" ]; then
     DOCKER_CMD="/usr/bin/docker"
 else
-    echo "Warning: Docker is not installed"
-    echo "Please install Docker manually if needed"
-    DOCKER_CMD=""
+    echo "Error: Docker is not installed properly"
+    exit 1
 fi
+echo "Docker version:"
+$DOCKER_CMD --version
 
-if [ -n "$DOCKER_CMD" ]; then
-    echo "Docker version:"
-    $DOCKER_CMD --version
-    
-    # Docker Compose 확인
-    if $DOCKER_CMD compose version &> /dev/null; then
-        echo "Docker Compose version:"
-        $DOCKER_CMD compose version
-    elif command -v docker-compose &> /dev/null; then
-        echo "Docker Compose version:"
-        docker-compose --version
-    else
-        echo "Warning: Docker Compose is not installed"
-    fi
+# Docker Compose 확인
+if $DOCKER_CMD compose version &> /dev/null; then
+    echo "Docker Compose version:"
+    $DOCKER_CMD compose version
+elif command -v docker-compose &> /dev/null; then
+    echo "Docker Compose version:"
+    docker-compose --version
+else
+    echo "Error: Docker Compose is not installed properly"
+    exit 1
 fi
 
 echo ">>> All prerequisites verified successfully!"

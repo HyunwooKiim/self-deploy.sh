@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # 스크립트가 있는 디렉토리로 이동 (POSIX 호환)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -43,7 +43,7 @@ echo ""
 echo ">>> Verifying installations..."
 
 # Java 확인 (PATH 또는 /usr/bin/java 체크)
-if command -v java &> /dev/null; then
+if command -v java > /dev/null 2>&1; then
     JAVA_CMD="java"
 elif [ -f "/usr/bin/java" ]; then
     JAVA_CMD="/usr/bin/java"
@@ -55,7 +55,7 @@ echo "Java version:"
 $JAVA_CMD -version
 
 # Docker 확인 (PATH 또는 /usr/bin/docker 체크)
-if command -v docker &> /dev/null; then
+if command -v docker > /dev/null 2>&1; then
     DOCKER_CMD="docker"
 elif [ -f "/usr/bin/docker" ]; then
     DOCKER_CMD="/usr/bin/docker"
@@ -67,10 +67,10 @@ echo "Docker version:"
 $DOCKER_CMD --version
 
 # Docker Compose 확인
-if $DOCKER_CMD compose version &> /dev/null; then
+if $DOCKER_CMD compose version > /dev/null 2>&1; then
     echo "Docker Compose version:"
     $DOCKER_CMD compose version
-elif command -v docker-compose &> /dev/null; then
+elif command -v docker-compose > /dev/null 2>&1; then
     echo "Docker Compose version:"
     docker-compose --version
 else
@@ -85,7 +85,7 @@ echo ""
 # Install AWS CLI if not present
 # ======================
 # /usr/local/bin/aws 또는 command로 확인
-if command -v aws &> /dev/null || [ -f "/usr/local/bin/aws" ]; then
+if command -v aws > /dev/null 2>&1 || [ -f "/usr/local/bin/aws" ]; then
     echo ">>> AWS CLI is already installed"
     # AWS CLI 경로 설정
     if [ -f "/usr/local/bin/aws" ]; then
@@ -95,7 +95,7 @@ else
     echo ">>> AWS CLI not found. Installing..."
     
     # Install unzip if not present
-    if ! command -v unzip &> /dev/null; then
+    if ! command -v unzip > /dev/null 2>&1; then
         echo ">>> Installing unzip..."
         sudo apt-get update -y
         sudo apt-get install -y unzip
@@ -136,7 +136,7 @@ else
 fi
 
 # Verify AWS CLI installation
-if command -v aws &> /dev/null; then
+if command -v aws > /dev/null 2>&1; then
     aws --version
 elif [ -f "/usr/local/bin/aws" ]; then
     /usr/local/bin/aws --version
@@ -169,7 +169,9 @@ fi
 
 # AWS 자격 증명 확인
 echo ">>> Verifying AWS credentials..."
-echo "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}***"
+# POSIX 호환 - 앞 10자만 표시 (cut 사용)
+AWS_KEY_PREFIX=$(echo "$AWS_ACCESS_KEY_ID" | cut -c1-10)
+echo "AWS_ACCESS_KEY_ID: ${AWS_KEY_PREFIX}***"
 echo "S3_BUCKET: $S3_BUCKET"
 echo "SERVICE_NAME: $SERVICE_NAME"
 

@@ -27,6 +27,7 @@ cd ..
 echo ">>> Setup completed successfully!"
 
 # setup 디렉토리 정리
+# setup 디렉토리 정리
 rm -rf $SETUP_DIR
 
 # ======================
@@ -35,13 +36,17 @@ rm -rf $SETUP_DIR
 echo ""
 echo ">>> Verifying installations..."
 
-# Java 확인
-if ! command -v java &> /dev/null; then
+# Java 확인 (PATH 또는 /usr/bin/java 체크)
+if command -v java &> /dev/null; then
+    JAVA_CMD="java"
+elif [ -f "/usr/bin/java" ]; then
+    JAVA_CMD="/usr/bin/java"
+else
     echo "Error: Java is not installed properly"
     exit 1
 fi
 echo "Java version:"
-java -version
+$JAVA_CMD -version
 
 # Docker 확인
 if ! command -v docker &> /dev/null; then

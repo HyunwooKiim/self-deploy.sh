@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# 스크립트가 있는 디렉토리로 이동
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo ">>> Working directory: $SCRIPT_DIR"
+echo ""
+
 # ======================
 # Setup Environment (Java, Docker)
 # ======================

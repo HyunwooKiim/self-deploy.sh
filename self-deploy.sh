@@ -75,6 +75,43 @@ echo ">>> All prerequisites verified successfully!"
 echo ""
 
 # ======================
+# Install AWS CLI if not present
+# ======================
+if ! command -v aws &> /dev/null; then
+    echo ">>> AWS CLI not found. Installing..."
+    
+    # Download AWS CLI installer
+    cd /tmp
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to download AWS CLI"
+        exit 1
+    fi
+    
+    # Unzip and install
+    unzip -q awscliv2.zip
+    sudo ./aws/install
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to install AWS CLI"
+        exit 1
+    fi
+    
+    # Clean up
+    rm -rf awscliv2.zip aws/
+    cd - > /dev/null
+    
+    echo ">>> AWS CLI installed successfully!"
+else
+    echo ">>> AWS CLI is already installed"
+fi
+
+# Verify AWS CLI installation
+aws --version
+echo ""
+
+# ======================
 # Load Environment Variables
 # ======================
 # .env 파일 로드

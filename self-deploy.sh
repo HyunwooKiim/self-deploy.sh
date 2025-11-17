@@ -27,7 +27,6 @@ cd ..
 echo ">>> Setup completed successfully!"
 
 # setup 디렉토리 정리
-# setup 디렉토리 정리
 rm -rf $SETUP_DIR
 
 # ======================
@@ -48,21 +47,29 @@ fi
 echo "Java version:"
 $JAVA_CMD -version
 
-# Docker 확인
-if ! command -v docker &> /dev/null; then
+# Docker 확인 (PATH 또는 /usr/bin/docker 체크)
+if command -v docker &> /dev/null; then
+    DOCKER_CMD="docker"
+elif [ -f "/usr/bin/docker" ]; then
+    DOCKER_CMD="/usr/bin/docker"
+else
     echo "Error: Docker is not installed properly"
     exit 1
 fi
 echo "Docker version:"
-docker --version
+$DOCKER_CMD --version
 
 # Docker Compose 확인
-if ! docker compose version &> /dev/null; then
+if $DOCKER_CMD compose version &> /dev/null; then
+    echo "Docker Compose version:"
+    $DOCKER_CMD compose version
+elif command -v docker-compose &> /dev/null; then
+    echo "Docker Compose version:"
+    docker-compose --version
+else
     echo "Error: Docker Compose is not installed properly"
     exit 1
 fi
-echo "Docker Compose version:"
-docker compose version
 
 echo ">>> All prerequisites verified successfully!"
 echo ""
@@ -164,7 +171,7 @@ echo ">>> Starting deployment with Docker Compose..."
 cd $APP_DIR
 
 # Docker Compose 실행
-docker compose up -d
+$DOCKER_CMD compose up -d
 
 if [ $? -ne 0 ]; then
     echo "Error: Docker Compose up failed"
@@ -175,11 +182,11 @@ fi
 echo ""
 echo ">>> Checking container status..."
 sleep 3
-docker compose ps
+$DOCKER_CMD compose ps
 
 # 모든 컨테이너가 running 상태인지 확인
-RUNNING_COUNT=$(docker compose ps --format json | jq -r '.State' | grep -c "running")
-TOTAL_COUNT=$(docker compose ps --format json | wc -l)
+RUNNING_COUNT=$($DOCKER_CMD compose ps --format json | jq -r '.State' | grep -c "running" || echo "0")
+TOTAL_COUNT=$($DOCKER_CMD compose ps --format json | wc -l | tr -d ' ')
 
 echo ""
 if [ "$RUNNING_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -gt 0 ]; then
@@ -188,7 +195,7 @@ if [ "$RUNNING_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -gt 0 ]; then
 else
     echo "⚠️  Warning: Some containers may not be running properly"
     echo "Running: $RUNNING_COUNT / Total: $TOTAL_COUNT"
-    docker compose ps
+    $DOCKER_CMD compose ps
 fi
 
 cd ..

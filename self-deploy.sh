@@ -148,9 +148,9 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# .env 파일에서 S3 관련 변수 로드 (더 안전한 방법)
+# .env 파일에서 S3 관련 변수 로드 (POSIX 호환 방법)
 set -a
-source .env
+. .env
 set +a
 
 # 필수 환경 변수 확인

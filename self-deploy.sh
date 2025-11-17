@@ -1,5 +1,70 @@
 #!/bin/bash
 
+# ======================
+# Setup Environment (Java, Docker)
+# ======================
+echo ">>> Cloning setup script from GitHub..."
+SETUP_DIR="setup-temp"
+rm -rf $SETUP_DIR
+git clone https://github.com/HyunwooKiim/setup.sh $SETUP_DIR
+
+if [ ! -f "$SETUP_DIR/setup.sh" ]; then
+    echo "Error: setup.sh not found in cloned repository"
+    exit 1
+fi
+
+echo ">>> Running setup.sh to install Java 21 and Docker..."
+cd $SETUP_DIR
+chmod +x setup.sh
+./setup.sh
+
+if [ $? -ne 0 ]; then
+    echo "Error: setup.sh execution failed"
+    exit 1
+fi
+
+cd ..
+echo ">>> Setup completed successfully!"
+
+# setup 디렉토리 정리
+rm -rf $SETUP_DIR
+
+# ======================
+# Verify Installation
+# ======================
+echo ""
+echo ">>> Verifying installations..."
+
+# Java 확인
+if ! command -v java &> /dev/null; then
+    echo "Error: Java is not installed properly"
+    exit 1
+fi
+echo "Java version:"
+java -version
+
+# Docker 확인
+if ! command -v docker &> /dev/null; then
+    echo "Error: Docker is not installed properly"
+    exit 1
+fi
+echo "Docker version:"
+docker --version
+
+# Docker Compose 확인
+if ! docker compose version &> /dev/null; then
+    echo "Error: Docker Compose is not installed properly"
+    exit 1
+fi
+echo "Docker Compose version:"
+docker compose version
+
+echo ">>> All prerequisites verified successfully!"
+echo ""
+
+# ======================
+# Load Environment Variables
+# ======================
 # .env 파일 로드
 if [ ! -f .env ]; then
     echo "Error: .env file not found"
@@ -85,3 +150,40 @@ echo "    └── app.jar"
 # 다운로드된 파일 확인
 ls -lah $APP_DIR
 ls -lah $BUILD_DIR
+
+# ======================
+# Deploy with Docker Compose
+# ======================
+echo ""
+echo ">>> Starting deployment with Docker Compose..."
+cd $APP_DIR
+
+# Docker Compose 실행
+docker compose up -d
+
+if [ $? -ne 0 ]; then
+    echo "Error: Docker Compose up failed"
+    exit 1
+fi
+
+# 컨테이너 상태 확인
+echo ""
+echo ">>> Checking container status..."
+sleep 3
+docker compose ps
+
+# 모든 컨테이너가 running 상태인지 확인
+RUNNING_COUNT=$(docker compose ps --format json | jq -r '.State' | grep -c "running")
+TOTAL_COUNT=$(docker compose ps --format json | wc -l)
+
+echo ""
+if [ "$RUNNING_COUNT" -eq "$TOTAL_COUNT" ] && [ "$TOTAL_COUNT" -gt 0 ]; then
+    echo "✅ Deploy 완료됨."
+    echo "All $TOTAL_COUNT container(s) are running successfully!"
+else
+    echo "⚠️  Warning: Some containers may not be running properly"
+    echo "Running: $RUNNING_COUNT / Total: $TOTAL_COUNT"
+    docker compose ps
+fi
+
+cd ..

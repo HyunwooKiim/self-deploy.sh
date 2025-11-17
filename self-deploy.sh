@@ -77,7 +77,14 @@ echo ""
 # ======================
 # Install AWS CLI if not present
 # ======================
-if ! command -v aws &> /dev/null; then
+# /usr/local/bin/aws 또는 command로 확인
+if command -v aws &> /dev/null || [ -f "/usr/local/bin/aws" ]; then
+    echo ">>> AWS CLI is already installed"
+    # AWS CLI 경로 설정
+    if [ -f "/usr/local/bin/aws" ]; then
+        export PATH="/usr/local/bin:$PATH"
+    fi
+else
     echo ">>> AWS CLI not found. Installing..."
     
     # Install unzip if not present
@@ -96,9 +103,15 @@ if ! command -v aws &> /dev/null; then
         exit 1
     fi
     
-    # Unzip and install
+    # Unzip and install (with --update flag if already exists)
     unzip -q awscliv2.zip
-    sudo ./aws/install
+    
+    if [ -d "/usr/local/aws-cli" ]; then
+        echo ">>> Updating existing AWS CLI installation..."
+        sudo ./aws/install --update
+    else
+        sudo ./aws/install
+    fi
     
     if [ $? -ne 0 ]; then
         echo "Error: Failed to install AWS CLI"
@@ -110,12 +123,20 @@ if ! command -v aws &> /dev/null; then
     cd - > /dev/null
     
     echo ">>> AWS CLI installed successfully!"
-else
-    echo ">>> AWS CLI is already installed"
+    
+    # PATH에 추가
+    export PATH="/usr/local/bin:$PATH"
 fi
 
 # Verify AWS CLI installation
-aws --version
+if command -v aws &> /dev/null; then
+    aws --version
+elif [ -f "/usr/local/bin/aws" ]; then
+    /usr/local/bin/aws --version
+else
+    echo "Error: AWS CLI is not available"
+    exit 1
+fi
 echo ""
 
 # ======================
